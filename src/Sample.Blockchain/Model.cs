@@ -176,7 +176,7 @@ namespace Sample.Blockchain
                 var inTx = tx.Inputs[i];
 
                 // Is this a Coinbase?
-                string payer = null;
+                string payer = null;                
                 if (inTx.PrevOut.IsNull)
                 {
                     // Yes.                    
@@ -208,9 +208,13 @@ namespace Sample.Blockchain
                 {
                     payee = outTx.ScriptPubKey.GetScriptAddress(Network.Main).Hash.ToString();
                 }
+                else if (type == AddressType.MultiplePublicKeyHashes)
+                {
+                    payee = outTx.ScriptPubKey.GetDestinationPublicKeys()[0].GetAddress(Network.Main).ToString();
+                }
                 else
                 {
-                    payee = outTx.ScriptPubKey.GetDestinationAddress(Network.Main).ToString();
+                    payee = outTx.ScriptPubKey?.GetDestinationAddress(Network.Main)?.ToString();
                 }
 
                 OutputTransactions[i] = new OutTransaction
