@@ -23,10 +23,10 @@
 
   <ItemGroup>
     <Reference Include="Raven.Client">
-      <HintPath>..\..\..\ravendb-4.0-git\src\Raven.Client\bin\Release\netstandard2.0\Raven.Client.dll</HintPath>
+      <HintPath>..\..\..\ravendb-40.git\src\Raven.Server\bin\Release\netcoreapp2.0\Raven.Client.dll</HintPath>
     </Reference>
     <Reference Include="Sparrow">
-      <HintPath>..\..\..\ravendb-4.0-git\src\Raven.Client\bin\Release\netstandard2.0\Sparrow.dll</HintPath>
+      <HintPath>..\..\..\ravendb-40.git\src\Raven.Client\bin\Release\netstandard2.0\Sparrow.dll</HintPath>
     </Reference>
   </ItemGroup>
 

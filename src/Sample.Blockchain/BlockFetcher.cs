@@ -14,7 +14,6 @@ namespace Sample.Blockchain
     {        
         public readonly Node Node;
         public readonly ChainBase BlockHeaders;
-
         public Checkpoint Checkpoint { get; private set; }
 
         public BlockFetcher(Checkpoint checkpoint, Node node, ChainBase chain, CancellationToken token)
@@ -38,13 +37,12 @@ namespace Sample.Blockchain
 
         #region IEnumerable<BlockInfo> Members
 
-        private ChainedBlock _lastProcessed;
 
         public IEnumerator<BlockInfo> GetEnumerator()
         {
             var fork = BlockHeaders.FindFork(Checkpoint.BlockLocator);
             var headers = BlockHeaders.EnumerateAfter(fork)
-                                       .Where(h => h.Height >= FromHeight && h.Height <= ToHeight);
+                                      .Where(h => h.Height >= FromHeight && h.Height <= ToHeight);
 
             var first = headers.FirstOrDefault();
             if (first == null)
@@ -59,9 +57,6 @@ namespace Sample.Blockchain
 
             foreach (var block in Node.GetBlocks(headers.Select(b => b.HashBlock), CancellationToken).TakeWhile(b => b != null))
             {
-                var header = BlockHeaders.GetBlock(height);
-                _lastProcessed = header;
-
                 yield return new BlockInfo(block, height);
 
                 height++;
@@ -78,20 +73,6 @@ namespace Sample.Blockchain
         }
 
         #endregion
-
-
-
-        private DateTime _lastSaved = DateTime.UtcNow;
-        public bool NeedSave => (DateTime.UtcNow - _lastSaved) > NeedSaveInterval;
-
-        public async Task SaveCheckpoint(IAsyncDocumentSession session)
-        {
-            if (_lastProcessed != null)
-            {
-                this.Checkpoint = await Checkpoint.CreateOrUpdate(session, Checkpoint.Id, Checkpoint.Network, _lastProcessed);
-            }
-            _lastSaved = DateTime.UtcNow;
-        }
 
         public int FromHeight
         {

@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Protocol;
+using Newtonsoft.Json;
 using Raven.Client.Documents;
 
 namespace Sample.Blockchain
@@ -41,23 +43,24 @@ namespace Sample.Blockchain
 
             var blockIndexer = new IndexBlockTask(this);
             var blockFetcher = new BlockFetcher(new Checkpoint(this.CheckpointName + ":Blocks", this.Network), _node.Value, _chainbase.Value, source.Token);
-            var task = blockIndexer.Run(blockFetcher);
+            var task = new[] {blockIndexer.Run(blockFetcher)};
 
-            while (!task.IsCompleted)
+            while (!Task.WaitAll(task, 2000))
             {
-                while (Console.KeyAvailable == false)
-                {
-                    Console.WriteLine($"\rProcessed: {blockIndexer.IndexedAttachments} - Partially Inserted: {blockIndexer.IndexedBlocks}");
-                    Thread.Sleep(2000); // Loop until input is entered.
-                }
+                Console.WriteLine($"\rProcessed: {blockIndexer.IndexedAttachments} - Partially Inserted: {blockIndexer.IndexedBlocks}");
 
-                var cki = Console.ReadKey();
-                if (cki.Key == ConsoleKey.Q)
+                if (Console.KeyAvailable)
                 {
-                    source.Cancel();
-                    break;
-                }                    
+                    var cki = Console.ReadKey();
+                    if (cki.Key == ConsoleKey.Q)
+                    {
+                        source.Cancel();
+                        break;
+                    }
+                }
             }
+
+            Console.WriteLine("Done!");
         }
 
         public void IndexTransactions()
