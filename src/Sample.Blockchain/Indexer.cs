@@ -41,13 +41,15 @@ namespace Sample.Blockchain
         {
             var source = new CancellationTokenSource();
 
+            var checkpoint = GetCheckpoint("Blocks");
+
             var blockIndexer = new IndexBlockTask(this);
-            var blockFetcher = new BlockFetcher(new Checkpoint(this.CheckpointName + ":Blocks", this.Network), _node.Value, _chainbase.Value, source.Token);
-            var task = new[] {blockIndexer.Run(blockFetcher)};
+            var blockFetcher = new BlockFetcher(checkpoint, _node.Value, _chainbase.Value, source.Token);
+            var task = new[] { blockIndexer.Index(blockFetcher, new LimitedConcurrencyLevelTaskScheduler(10)) };
 
             while (!Task.WaitAll(task, 2000))
             {
-                Console.WriteLine($"\rProcessed: {blockIndexer.IndexedAttachments} - Partially Inserted: {blockIndexer.IndexedBlocks}");
+                Console.WriteLine($"\rProcessed: {blockIndexer.IndexedBlocks}");
 
                 if (Console.KeyAvailable)
                 {
@@ -63,9 +65,54 @@ namespace Sample.Blockchain
             Console.WriteLine("Done!");
         }
 
+        private Checkpoint GetCheckpoint(string taskName)
+        {
+            string checkpointName = $"{this.CheckpointName}:{taskName}";
+
+            if (this.IgnoreCheckpoints == false)
+            {
+                using (var session = Store.OpenAsyncSession())
+                {
+                    var checkpoint = Checkpoint.TryLoad(session, checkpointName, this.Network).Result; // Sync wait
+                    if (checkpoint != null)
+                        return checkpoint;
+                }
+            }
+            return new Checkpoint(checkpointName, this.Network);
+        }
+
         public void IndexTransactions()
         {
-            throw new NotImplementedException();
+            var source = new CancellationTokenSource();
+
+            // We create or retrieve the transaction block.
+            var checkpoint = GetCheckpoint("Transactions");
+
+            // We get the blocks import (because we shouldnt index transactions without its corresponding block)
+            var blocksCheckpoint = GetCheckpoint("Blocks");
+            var blockChain = GetNodeChain();
+            var fork = blockChain.FindFork(blocksCheckpoint.BlockLocator);                        
+
+            var blockIndexer = new IndexTransactionTask(this) { MaxQueued = 10 };
+            var blockFetcher = new BlockFetcher(checkpoint, _node.Value, _chainbase.Value, source.Token) { ToHeight = fork.Height };
+            var task = new[] { blockIndexer.Index(blockFetcher, new LimitedConcurrencyLevelTaskScheduler(10)) };
+
+            while (!Task.WaitAll(task, 2000))
+            {
+                Console.WriteLine($"\rBlocks Scheduled: {blockIndexer.ScheduledTransactions} - Transactions Indexed: {blockIndexer.IndexedTransactions}");
+
+                if (Console.KeyAvailable)
+                {
+                    var cki = Console.ReadKey();
+                    if (cki.Key == ConsoleKey.Q)
+                    {
+                        source.Cancel();
+                        break;
+                    }
+                }
+            }
+
+            Console.WriteLine("Done!");
         }
 
         public void IndexOrderedBalances()

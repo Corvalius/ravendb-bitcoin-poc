@@ -28,6 +28,9 @@ namespace Sample.Blockchain
         [JsonIgnore]
         public BlockHeader Header { get; private set; }
 
+        [JsonIgnore]
+        public Block Block { get; private set; }
+
         protected BlockInfo()
         { }
 
@@ -42,14 +45,15 @@ namespace Sample.Blockchain
         {
             this.Id = BlockInfo.ToId(block.Header.GetHash());
 
+            this.Height = height;
             this.PreviousBlock = BlockInfo.ToId(block.Header.HashPrevBlock);
 
             this.HumanTime = block.Header.BlockTime;
             this.Time = this.HumanTime.UtcTicks;
             this.UnixTime = HumanTime.ToUnixTimeSeconds();
 
-            this.Header = block.Header;
-            this.Height = height;
+            this.Block = block;
+            this.Header = block.Header;                        
         }
 
         private void Update(ChainedBlock block)
@@ -59,7 +63,7 @@ namespace Sample.Blockchain
             this.HumanTime = block.Header.BlockTime;
             this.Time = this.HumanTime.UtcTicks;
             this.UnixTime = HumanTime.ToUnixTimeSeconds();
-
+;            
             this.Header = block.Header;
             this.Height = block.Height;
         }

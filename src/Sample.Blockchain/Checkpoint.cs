@@ -14,9 +14,9 @@ namespace Sample.Blockchain
 
         public string Id;
 
-        public readonly string Name;
-        public readonly string BlockId;
-        public readonly string GenesisId;
+        public string Name;
+        public string BlockId;
+        public string GenesisId;
 
         [JsonIgnore]
         public readonly Network Network;
@@ -25,7 +25,7 @@ namespace Sample.Blockchain
         private byte[] _attachmentBytes;
 
         [JsonIgnore]
-        public byte[] AttachmentBytes => _attachmentBytes ?? (_attachmentBytes = BlockLocator.ToBytes());
+        public byte[] AttachmentBytes => _attachmentBytes ?? (_attachmentBytes = _blockLocator?.ToBytes());
 
         [JsonIgnore]
         private BlockLocator _blockLocator;
@@ -39,6 +39,11 @@ namespace Sample.Blockchain
                 this._blockLocator = value;
                 this._attachmentBytes = null;                
             }
+        }
+
+        [Obsolete("Only used by the serialization engine.")]
+        protected Checkpoint()
+        {            
         }
 
         public Checkpoint (string name, Network network, BlockLocator locator = null)
@@ -102,6 +107,39 @@ namespace Sample.Blockchain
             return checkpoint; 
         }
 
+        public static async ValueTask<Checkpoint> CreateOrUpdate(IAsyncDocumentSession session, Checkpoint checkpoint, BlockLocator locator)
+        {
+            var aux = await session.LoadAsync<Checkpoint>(checkpoint.Id);
+            if (aux == null)
+            {
+                checkpoint = new Checkpoint(checkpoint.Name, checkpoint.Network, locator);
+                await session.StoreAsync(checkpoint);
+            }
+            else
+            {
+                checkpoint = aux;
+            }
+
+            checkpoint.BlockLocator = locator;
+            session.Advanced.StoreAttachment(checkpoint, "BlockBytes", new MemoryStream(checkpoint.AttachmentBytes));
+
+            return checkpoint;
+        }
+
+        public static async ValueTask<Checkpoint> TryLoad(IAsyncDocumentSession session, string name, Network network)
+        {
+            var checkpoint = await session.LoadAsync<Checkpoint>(Checkpoint.ToId(name, network.Name));
+            if (checkpoint == null)
+                return null;
+
+            var attachment = await session.Advanced.GetAttachmentAsync(checkpoint, "BlockBytes");
+            var locator = new BlockLocator();
+            locator.ReadWrite(new BitcoinStream(attachment.Stream, false));
+            checkpoint.BlockLocator = locator;
+
+            return checkpoint;
+        }
+
         public static async ValueTask<Checkpoint> Load(IAsyncDocumentSession session, string name, Network network)
         {
             var checkpoint = await session.LoadAsync<Checkpoint>(Checkpoint.ToId(name, network.Name));
@@ -115,6 +153,6 @@ namespace Sample.Blockchain
 
             return checkpoint;
         }
-        
+
     }
 }

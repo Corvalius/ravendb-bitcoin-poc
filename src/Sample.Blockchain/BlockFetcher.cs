@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Protocol;
-using Raven.Client.Documents.Session;
 
 namespace Sample.Blockchain
 {
@@ -14,14 +11,15 @@ namespace Sample.Blockchain
     {        
         public readonly Node Node;
         public readonly ChainBase BlockHeaders;
-        public Checkpoint Checkpoint { get; private set; }
+        public Block LastProcessed { get; private set; }
+        public Checkpoint Checkpoint { get; set; }
 
         public BlockFetcher(Checkpoint checkpoint, Node node, ChainBase chain, CancellationToken token)
         {
             Node = node ?? throw new ArgumentNullException(nameof(node));
             Checkpoint = checkpoint ?? throw new ArgumentNullException(nameof(checkpoint));
             BlockHeaders = chain ?? node.GetChain();
-            CancellationToken = token;
+            CancellationToken = token;            
             
             InitDefault();
         }
@@ -57,7 +55,8 @@ namespace Sample.Blockchain
 
             foreach (var block in Node.GetBlocks(headers.Select(b => b.HashBlock), CancellationToken).TakeWhile(b => b != null))
             {
-                yield return new BlockInfo(block, height);
+                LastProcessed = block;
+                yield return new BlockInfo(block, height);                
 
                 height++;
             }
@@ -87,5 +86,12 @@ namespace Sample.Blockchain
         }
 
 
+        public void SkipToEnd()
+        {
+            var height = Math.Min(ToHeight, BlockHeaders.Tip.Height);            
+            var chainedBlock = BlockHeaders.GetBlock(height);
+
+            this.LastProcessed = Node.GetBlocks(chainedBlock.HashBlock).First();
+        }
     }
 }

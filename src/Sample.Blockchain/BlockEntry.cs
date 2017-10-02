@@ -11,7 +11,7 @@ using Raven.Client.Documents.Session;
 
 namespace Sample.Blockchain
 {
-    public class Block
+    public class BlockEntry
     {
         public const string Prefix = "blk:";
 
@@ -28,21 +28,21 @@ namespace Sample.Blockchain
         [JsonIgnore]
         public BlockHeader Header { get; private set; }
 
-        protected Block()
+        protected BlockEntry()
         { }
 
-        public Block(ChainedBlock block)
+        public BlockEntry(ChainedBlock block)
         {
-            this.Id = Block.ToId(block.Header.GetHash());
+            this.Id = BlockEntry.ToId(block.Header.GetHash());
 
             Update(block);
         }
 
-        public Block(NBitcoin.Block block, int height)
+        public BlockEntry(NBitcoin.Block block, int height)
         {
-            this.Id = Block.ToId(block.Header.GetHash());
+            this.Id = BlockEntry.ToId(block.Header.GetHash());
 
-            this.PreviousBlock = Block.ToId(block.Header.HashPrevBlock);
+            this.PreviousBlock = BlockEntry.ToId(block.Header.HashPrevBlock);
 
             this.HumanTime = block.Header.BlockTime;
             this.Time = this.HumanTime.UtcTicks;
@@ -54,7 +54,7 @@ namespace Sample.Blockchain
 
         private void Update(ChainedBlock block)
         {
-            this.PreviousBlock = Block.ToId(block.Header.HashPrevBlock);
+            this.PreviousBlock = BlockEntry.ToId(block.Header.HashPrevBlock);
 
             this.HumanTime = block.Header.BlockTime;
             this.Time = this.HumanTime.UtcTicks;
@@ -87,12 +87,12 @@ namespace Sample.Blockchain
             this.Header = header;            
         }
 
-        public static async ValueTask<Block> CreateOrUpdate(IAsyncDocumentSession session, ChainedBlock chainBlock)
+        public static async ValueTask<BlockEntry> CreateOrUpdate(IAsyncDocumentSession session, ChainedBlock chainBlock)
         {
-            var blk = await session.LoadAsync<Block>(Block.ToId(chainBlock.HashBlock));
+            var blk = await session.LoadAsync<BlockEntry>(BlockEntry.ToId(chainBlock.HashBlock));
             if (blk == null)
             {
-                blk = new Block(chainBlock);
+                blk = new BlockEntry(chainBlock);
                 await session.StoreAsync(blk);
             }
             else
